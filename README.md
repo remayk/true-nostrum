@@ -26,7 +26,7 @@ Automatically keeps your Ranger's Nostrum and Nostrum of Energy buffs active.
 | Toggle Ranger Nostrum                            | `tn ranger`  |
 | Toggle Energy Nostrum                            | `tn energy`  |
 | Restrict to dungeons only                        | `tn dungeon` |
-| Restrict to Civil Unrest                         | `tn unrest`  |
+| Civil Unrest                                     | `tn unrest`  |
 | Keep resurrection invincibility (don’t break it) | `tn invinc`  |
 
 ## Tips
@@ -45,6 +45,6 @@ Automatically keeps your Ranger's Nostrum and Nostrum of Energy buffs active.
 
 ## Credits
 
-Originally based on community work (Caali, SaltyMonkey, HSDN, others).
+Originally based on true-everful-nostrum (Caali, SaltyMonkey, HSDN, others).
 
 Enjoy not worrying about popping your nostrum again.
