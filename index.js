@@ -169,21 +169,17 @@ module.exports = function NetworkMod(mod) {
     activeUntil[cat] = 0;
     nextAttemptAfter[cat] = 0;
   }
-  mod.hook(
-    "S_ABNORMALITY_BEGIN",
-    "*",
-    (e) => ABN_TO_CAT.has(e.id) && onAbnBeginOrRefresh(e)
-  );
-  mod.hook(
-    "S_ABNORMALITY_REFRESH",
-    "*",
-    (e) => ABN_TO_CAT.has(e.id) && onAbnBeginOrRefresh(e)
-  );
-  mod.hook(
-    "S_ABNORMALITY_END",
-    "*",
-    (e) => ABN_TO_CAT.has(e.id) && onAbnEnd(e)
-  );
+  // NOTE: Never return false here; returning false would block the packet
+  // and hide buffs from the client. We only observe these abnormalities.
+  mod.hook("S_ABNORMALITY_BEGIN", "*", (e) => {
+    if (ABN_TO_CAT.has(e.id)) onAbnBeginOrRefresh(e);
+  });
+  mod.hook("S_ABNORMALITY_REFRESH", "*", (e) => {
+    if (ABN_TO_CAT.has(e.id)) onAbnBeginOrRefresh(e);
+  });
+  mod.hook("S_ABNORMALITY_END", "*", (e) => {
+    if (ABN_TO_CAT.has(e.id)) onAbnEnd(e);
+  });
 
   /* --------------------------------------------------
    * Core upkeep loop
