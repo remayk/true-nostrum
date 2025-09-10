@@ -1,7 +1,8 @@
 {
-  "name": "true-nostrum-3104",
-  "author": "slynetz (based on Caali/HSDN)",
+  "name": "true-nostrum",
+  "author": "remayk (based on Caali/HSDN)",
   "description": "Auto-use Nostrum items for OSTO.",
+  "servers": ["https://raw.githubusercontent.com/remayk/trust-nostrum/main/"],
   "options": {
     "cliName": "TN",
     "guiName": "True Nostrum",
@@ -14,5 +15,5 @@
     "true-everful-nostrum-menma",
     "essentials"
   ],
-  "disableAutoUpdate": true
+  "disableAutoUpdate": false
 }

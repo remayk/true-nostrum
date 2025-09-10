@@ -1,5 +1,5 @@
 // True Nostrum for Old School Tera Online
-// by slynetz
+// by remayk
 
 const Vec3 = require("tera-vec3");
 
