@@ -36,6 +36,7 @@ module.exports = function NetworkMod(mod) {
   ]);
   const activeUntil = { ranger: 0, energy: 0 }; // epoch ms
   const CATEGORIES = ["ranger", "energy"];
+  const PRIORITY_ORDER = ["ranger", "energy"]; // ranger pops first
 
   /* --------------------------------------------------
    * Cooldown tracking
@@ -72,12 +73,20 @@ module.exports = function NetworkMod(mod) {
    * Idle & scheduling state
    * -------------------------------------------------- */
   let lastCombatOrActivity = Date.now();
+  let loginGraceUntil = 0; // epoch ms; suppress idle warnings right after entering game
   const nextAttemptAfter = { ranger: 0, energy: 0 }; // ms epoch gating next attempt
   const pendingUses = { ranger: null, energy: null }; // { itemId, attemptTime, attempts }
   let warnedIdle = false,
     warnedIdle14 = false;
 
   function updateIdleStatus() {
+    if (!mod.settings.enabled) return;
+    // reset baseline so out-of-game time isn't treated as idle.
+    if (!mod.game.isIngame || mod.game.isInLoadingScreen) {
+      lastCombatOrActivity = Date.now();
+      return;
+    }
+    if (Date.now() < loginGraceUntil) return; // grace period after logging in
     if (mod.game.me.inCombat) {
       lastCombatOrActivity = Date.now();
       warnedIdle = warnedIdle14 = false;
@@ -249,30 +258,51 @@ module.exports = function NetworkMod(mod) {
       return; // preserve invincibility period if flag set
     const preRefresh = Math.max(0, mod.settings.pre_refresh_ms || 0);
     const now = Date.now();
-    for (const cat of CATEGORIES) attempt(cat, now, preRefresh);
+    // Enforce priority (ranger before energy) each attempt cycle
+    for (const cat of PRIORITY_ORDER) attempt(cat, now, preRefresh);
   }
 
   /* --------------------------------------------------
    * Loop control & lifecycle
    * -------------------------------------------------- */
-  let interval = null;
+  let idleInterval = null;
+  let fallbackInterval = null;
+  let lastPerTickAttempt = 0;
+  const PER_TICK_MS = 100; //
+  const FALLBACK_MS = 500; //
+
+  // Hook a fast updating packet to drive near real-time upkeep
+  mod.hook("S_PLAYER_STAT_UPDATE", "*", () => {
+    if (!mod.settings.enabled) return;
+    const now = Date.now();
+    if (now - lastPerTickAttempt >= PER_TICK_MS) {
+      lastPerTickAttempt = now;
+      tryUseNostrums();
+    }
+  });
+
   function start() {
     stop(true);
-    interval = mod.setInterval(() => {
-      tryUseNostrums();
+    // Idle monitor every 1s
+    idleInterval = mod.setInterval(() => {
       updateIdleStatus();
-    }, mod.settings.interval || 1000);
+    }, 1000);
+    fallbackInterval = mod.setInterval(() => {
+      if (mod.settings.enabled) tryUseNostrums();
+    }, FALLBACK_MS);
     mod.command.message("TN enabled.");
   }
   function stop(silent = false) {
-    if (interval) {
-      mod.clearInterval(interval);
-      interval = null;
-      warnedIdle = warnedIdle14 = false;
-      if (!silent) mod.command.message("TN disabled.");
-    } else if (!silent) {
-      mod.command.message("TN disabled.");
+    if (idleInterval) {
+      mod.clearInterval(idleInterval);
+      idleInterval = null;
     }
+    if (fallbackInterval) {
+      mod.clearInterval(fallbackInterval);
+      fallbackInterval = null;
+    }
+    warnedIdle = warnedIdle14 = false;
+    if (!silent) mod.command.message("TN disabled.");
   }
   const self = this;
   if (self && !self.destructor)
@@ -284,13 +314,22 @@ module.exports = function NetworkMod(mod) {
 
   mod.game.on("enter_game", () => {
     ensureCooldownMap();
+    // Reset idle tracking on entering game
+    lastCombatOrActivity = Date.now();
+    warnedIdle = warnedIdle14 = false;
+    loginGraceUntil = Date.now() + 7000; // 7s grace window
     mod.settings.enabled
       ? start()
       : mod.command.message(
           'Nostrums disabled. Use "/8 tn on" or open GUI: "/8 tn"'
         );
   });
-  mod.game.on("leave_game", () => stop());
+  mod.game.on("leave_game", () => {
+    // Stop timers and reset baseline so out-of-game time is not counted as idle
+    lastCombatOrActivity = Date.now();
+    warnedIdle = warnedIdle14 = false;
+    stop();
+  });
   try {
     mod.hook("C_CONFIRM_UPDATE_NOTIFICATION", "raw", () => false);
   } catch (_) {}
